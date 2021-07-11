@@ -1,0 +1,57 @@
+{
+	"name": "marcel-client",
+	"version": "0.1.0",
+	"license": "MIT",
+	"scripts": {
+		"build": "rollup -c",
+		"dev": "rollup -c -w",
+		"start": "live-server public -q --cors --mount=/config:marcel-config.json --proxy=/api/:http://localhost:8090/api/"
+	},
+	"devDependencies": {
+		"@emrys-myrddin/live-server": "^1.3.0",
+		"@rollup/plugin-commonjs": "^17.1.0",
+		"@rollup/plugin-node-resolve": "^11.1.1",
+		"@rollup/plugin-replace": "^2.3.4",
+		"eslint": "^7.19.0",
+		"node-sass": "^5.0.0",
+		"postcss": "^8.0.0",
+		"rollup": "^2.38.4",
+		"rollup-plugin-css-only": "^3.1.0",
+		"rollup-plugin-livereload": "^2.0.0",
+		"rollup-plugin-postcss": "^4.0.0",
+		"rollup-plugin-svelte": "^7.1.0",
+		"rollup-plugin-terser": "^7.0.2",
+		"svelte": "^3.32.1",
+		"svelte-preprocess": "^4.6.6"
+	},
+	"eslintConfig": {
+		"extends": "eslint:recommended",
+		"env": {
+			"browser": true,
+			"es6": true
+		},
+		"parserOptions": {
+			"sourceType": "module",
+			"ecmaVersion": 2019
+		},
+		"rules": {
+			"require-atomic-updates": "off",
+			"no-console": [
+				"error",
+				{
+					"allow": [
+						"info",
+						"warn",
+						"error"
+					]
+				}
+			]
+		}
+	},
+	"dependencies": {
+		"bulma": "^0.9.2",
+		"marcel-media": "^0.1.0",
+		"robot3": "^0.2.9",
+		"svelma": "^0.4.0"
+	}
+}

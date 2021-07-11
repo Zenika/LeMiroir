@@ -17,7 +17,7 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "eslint": "^6.5.1"
+    "eslint": "^7.19.0"
   },
   "eslintConfig": {
     "extends": "eslint:recommended",
