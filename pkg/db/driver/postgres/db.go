@@ -15,11 +15,12 @@ import (
 	"github.com/allez-chauffe/marcel/pkg/db/internal/db"
 )
 
-type postgresDriver struct{}
+type driver struct{}
 
-var Driver db.Driver = new(postgresDriver)
+// Driver is the postgres driver implementation.
+var Driver db.Driver = new(driver)
 
-func (driver *postgresDriver) Open() (db.Database, error) {
+func (d *driver) Open() (db.Client, error) {
 	pgConf := config.Default().API().DB().Postgres()
 
 	log.Infof("Connecting to postgres database (%s:%s/%s) ...", pgConf.Host(), pgConf.Port(), pgConf.DBName())
@@ -43,18 +44,18 @@ func (driver *postgresDriver) Open() (db.Database, error) {
 
 	log.Info("Postgres database connected")
 
-	return &postgresDatabase{pg}, nil
+	return &client{pg}, nil
 }
 
-type postgresDatabase struct {
+type client struct {
 	pg *sql.DB
 }
 
-func (database *postgresDatabase) Begin() (db.Transaction, error) {
-	return database.pg.Begin()
+func (c *client) Begin() (db.Transaction, error) {
+	return c.pg.Begin()
 }
 
-func (database *postgresDatabase) CreateStore(newEntity func() db.Entity) (db.Store, error) {
+func (c *client) Store(newEntity func() db.Entity) (db.Store, error) {
 	entity := newEntity()
 	table := toSnakeCase(reflect.TypeOf(entity).Elem().Name())
 	idType := reflect.TypeOf(entity.GetID()).Name()
@@ -76,35 +77,13 @@ func (database *postgresDatabase) CreateStore(newEntity func() db.Entity) (db.St
 		);
 	`, table, postgresIDType)
 
-	if _, err := database.pg.Exec(query); err != nil {
+	if _, err := c.pg.Exec(query); err != nil {
 		return nil, fmt.Errorf("Error while creating table '%s': %w \nQuery: %s", table, err, query)
 	}
 
-	return &postgresStore{&postgresStoreConfig{table, postgresIDType, newEntity, database.pg}, nil}, nil
+	return &store{table, postgresIDType, newEntity, c.pg, nil}, nil
 }
 
-func (database *postgresDatabase) Close() error {
-	return database.pg.Close()
-}
-
-func createDatabase() (*sql.DB, error) {
-	dbName := config.Default().API().DB().Postgres().DBName()
-	log.Infof("Creating database %s", dbName)
-
-	tempDB, err := sql.Open("postgres", getConnectionString("postgres"))
-	if err != nil {
-		return nil, err
-	}
-	defer tempDB.Close()
-
-	if _, err = tempDB.Exec(fmt.Sprintf(`CREATE DATABASE "%s"`, dbName)); err != nil {
-		return nil, err
-	}
-
-	pg, err := sql.Open("postgres", getConnectionString(""))
-	if err != nil {
-		return nil, err
-	}
-
-	return pg, pg.Ping()
+func (c *client) Close() error {
+	return c.pg.Close()
 }

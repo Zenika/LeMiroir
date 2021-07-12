@@ -1,56 +1,57 @@
 package clients
 
-import "github.com/allez-chauffe/marcel/pkg/db/internal/db"
-
-var DefaultStore *Store
+import "github.com/allez-chauffe/marcel/pkg/db/driver/driver"
 
 type Store struct {
-	store db.Store
+	store driver.Store
 }
 
-func CreateStore() error {
-	store, err := db.DB.CreateStore(func() db.Entity {
-		return new(Client)
-	})
+func NewStore(client driver.Client) (*Store, error) {
+	store, err := client.Store(driver.WithType(new(Client)))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	DefaultStore = &Store{store}
-
-	return nil
+	return &Store{store}, nil
 }
 
-func Transactional(tx db.Transaction) *Store {
-	return &Store{DefaultStore.store.Transactional(tx)}
+// FIXME
+// func (s *Store) Transactional(tx db.Transaction) *Store {
+// 	return &Store{s.store.Transactional(tx)}
+// }
+
+func (s *Store) Get(id string) (*Client, error) {
+	e, err := s.store.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	return e.(*Client), nil
 }
 
-func (b *Store) Get(id string) (*Client, error) {
-	c := &Client{}
-	return c, b.store.Get(id, &c)
+func (s *Store) Exists(id string) (bool, error) {
+	return s.store.Exists(id)
 }
 
-func (b *Store) Exists(id string) (bool, error) {
-	return b.store.Exists(id)
+func (s *Store) List() ([]Client, error) {
+	l, err := s.store.List()
+	if err != nil {
+		return nil, err
+	}
+	return l.([]Client), nil
 }
 
-func (b *Store) List() ([]Client, error) {
-	var clients = []Client{}
-	return clients, b.store.List(&clients)
+func (s *Store) Insert(c *Client) error {
+	return s.store.Insert(c)
 }
 
-func (b *Store) Insert(c *Client) error {
-	return b.store.Insert(c)
+func (s *Store) Update(c *Client) error {
+	return s.store.Update(c)
 }
 
-func (b *Store) Update(c *Client) error {
-	return b.store.Update(c)
+func (s *Store) Delete(id string) error {
+	return s.store.Delete(id)
 }
 
-func (b *Store) Delete(id string) error {
-	return b.store.Delete(id)
-}
-
-func (b *Store) DeleteAll() error {
-	return b.store.DeleteAll()
+func (s *Store) DeleteAll() error {
+	return s.store.DeleteAll()
 }

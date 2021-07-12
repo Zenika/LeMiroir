@@ -7,42 +7,39 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var DefaultStore *Store
-
 type Store struct {
-	store db.Store
+	store db.StoreBase
 }
 
-func Transactional(tx db.Transaction) *Store {
-	return &Store{DefaultStore.store.Transactional(tx)}
-}
-
-func CreateStore() error {
-	store, err := db.DB.CreateStore(func() db.Entity {
+func CreateStore(database db.Client) (*Store, error) {
+	store, err := database.CreateStore(func() db.Entity {
 		return new(Media)
 	})
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	DefaultStore = &Store{store}
-	return nil
+	return &Store{store}, nil
 }
 
-func (b *Store) List() ([]Media, error) {
+func (s *Store) Transactional(tx db.Transaction) *Store {
+	return &Store{s.store.Transactional(tx)}
+}
+
+func (s *Store) List() ([]Media, error) {
 	var medias = []Media{}
-	return medias, b.store.List(&medias)
+	return medias, s.store.List(&medias)
 }
 
-func (b *Store) Get(id int) (*Media, error) {
+func (s *Store) Get(id int) (*Media, error) {
 	var result = new(Media)
-	return result, b.store.Get(id, &result)
+	return result, s.store.Get(id, &result)
 }
 
-func (b *Store) Insert(m *Media) (err error) {
+func (s *Store) Insert(m *Media) (err error) {
 	logrus.Debugf("Before ensure")
-	return db.EnsureTransaction(b.store, func(store db.Store) error {
+	return db.EnsureTransaction(s.store, func(store db.Store) error {
 		if err = store.Insert(m); err != nil {
 			return err
 		}
@@ -60,16 +57,16 @@ func (b *Store) Insert(m *Media) (err error) {
 	})
 }
 
-func (b *Store) Update(m *Media) error {
-	return b.store.Update(m)
+func (s *Store) Update(m *Media) error {
+	return s.store.Update(m)
 }
 
-func (b *Store) Delete(id int) error {
-	return b.store.Delete(id)
+func (s *Store) Delete(id int) error {
+	return s.store.Delete(id)
 }
 
-func (b *Store) UpsertAll(medias []Media) error {
-	return db.EnsureTransaction(b.store, func(store db.Store) error {
+func (s *Store) UpsertAll(medias []Media) error {
+	return db.EnsureTransaction(s.store, func(store db.Store) error {
 		for _, m := range medias {
 			if err := store.Upsert(&m); err != nil {
 				return err
@@ -80,6 +77,6 @@ func (b *Store) UpsertAll(medias []Media) error {
 	})
 }
 
-func (b *Store) Exists(id int) (bool, error) {
-	return b.store.Exists(id)
+func (s *Store) Exists(id int) (bool, error) {
+	return s.store.Exists(id)
 }

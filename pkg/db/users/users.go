@@ -10,31 +10,28 @@ import (
 	"github.com/allez-chauffe/marcel/pkg/db/internal/db"
 )
 
-var DefaultStore *Store
-
 type Store struct {
-	store db.Store
+	store db.StoreBase
 }
 
-func CreateStore() error {
-	store, err := db.DB.CreateStore(func() db.Entity {
+func CreateStore(database db.Client) (*Store, error) {
+	store, err := database.CreateStore(func() db.Entity {
 		return new(User)
 	})
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	DefaultStore = &Store{store}
-	return nil
+	return &Store{store}, nil
 }
 
-func Transactional(tx db.Transaction) *Store {
-	return &Store{DefaultStore.store.Transactional(tx)}
+func (s *Store) Transactional(tx db.Transaction) *Store {
+	return &Store{s.store.Transactional(tx)}
 }
 
-func (b *Store) EnsureOneUser() error {
-	return db.EnsureTransaction(b.store, func(store db.Store) error {
+func (s *Store) EnsureOneUser() error {
+	return db.EnsureTransaction(s.store, func(store db.Store) error {
 		users := &[]User{}
 
 		if err := store.List(users); err != nil || len(*users) != 0 {
@@ -66,28 +63,28 @@ func (b *Store) EnsureOneUser() error {
 	})
 }
 
-func (b *Store) Insert(u *User) error {
-	return b.store.Insert(u)
+func (s *Store) Insert(u *User) error {
+	return s.store.Insert(u)
 }
 
-func (b *Store) List() ([]User, error) {
+func (s *Store) List() ([]User, error) {
 	var users []User
-	return users, b.store.List(&users)
+	return users, s.store.List(&users)
 }
 
-func (b *Store) Get(id string) (*User, error) {
+func (s *Store) Get(id string) (*User, error) {
 	u := new(User)
-	return u, b.store.Get(id, &u)
+	return u, s.store.Get(id, &u) // FIXME non
 }
 
-func (b *Store) GetByLogin(login string) (*User, error) {
+func (s *Store) GetByLogin(login string) (*User, error) {
 	var users []User
 
 	filters := map[string]interface{}{
 		"Login": login,
 	}
 
-	if err := b.store.Find(&users, filters); err != nil {
+	if err := s.store.Find(&users, filters); err != nil {
 		return nil, err
 	}
 
@@ -98,12 +95,12 @@ func (b *Store) GetByLogin(login string) (*User, error) {
 	return &users[0], nil
 }
 
-func (b *Store) Delete(id string) error {
-	return b.store.Delete(id)
+func (s *Store) Delete(id string) error {
+	return s.store.Delete(id)
 }
 
-func (b *Store) Disconnect(id string) error {
-	return db.EnsureTransaction(b.store, func(store db.Store) error {
+func (s *Store) Disconnect(id string) error {
+	return db.EnsureTransaction(s.store, func(store db.Store) error {
 		u := &User{}
 		if err := store.Get(id, &u); u == nil || err != nil {
 			return err
@@ -114,12 +111,12 @@ func (b *Store) Disconnect(id string) error {
 	})
 }
 
-func (b *Store) Update(user *User) error {
-	return b.store.Update(user)
+func (s *Store) Update(user *User) error {
+	return s.store.Update(user)
 }
 
-func (b *Store) UpsertAll(users []User) error {
-	return db.EnsureTransaction(b.store, func(store db.Store) error {
+func (s *Store) UpsertAll(users []User) error {
+	return db.EnsureTransaction(s.store, func(store db.Store) error {
 		for _, u := range users {
 			if err := store.Upsert(&u); err != nil {
 				return err
@@ -130,6 +127,6 @@ func (b *Store) UpsertAll(users []User) error {
 	})
 }
 
-func (b *Store) Exists(id string) (bool, error) {
-	return b.store.Exists(id)
+func (s *Store) Exists(id string) (bool, error) {
+	return s.store.Exists(id)
 }

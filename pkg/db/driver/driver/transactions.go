@@ -1,4 +1,4 @@
-package db
+package driver
 
 import (
 	log "github.com/sirupsen/logrus"
@@ -9,19 +9,19 @@ type Transaction interface {
 	Rollback() error
 }
 
-func Transactional(task func(Transaction) error) (err error) {
-	tx, err := DB.Begin()
+func Transactional(client Client, task func(Transaction) error) (err error) {
+	tx, err := client.Begin()
 	if err != nil {
 		return err
 	}
 	log.Debugf("begin transaction")
 
-	defer FinishTransaction(tx, &err)
+	defer finishTransaction(tx, &err)
 
 	return task(tx)
 }
 
-func FinishTransaction(tx Transaction, err *error) {
+func finishTransaction(tx Transaction, err *error) {
 	r := recover()
 
 	if *err == nil && r == nil {
@@ -38,14 +38,4 @@ func FinishTransaction(tx Transaction, err *error) {
 	if r != nil {
 		panic(r)
 	}
-}
-
-func EnsureTransaction(store Store, task func(Store) error) (err error) {
-	if store.IsTransactional() {
-		return task(store)
-	}
-
-	return Transactional(func(tx Transaction) error {
-		return task(store.Transactional(tx))
-	})
 }

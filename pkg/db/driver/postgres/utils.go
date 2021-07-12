@@ -11,6 +11,7 @@ import (
 
 	"github.com/fatih/structs"
 	"github.com/mitchellh/mapstructure"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/allez-chauffe/marcel/pkg/config"
 	"github.com/allez-chauffe/marcel/pkg/db/internal/db"
@@ -23,13 +24,6 @@ func toSnakeCase(str string) string {
 	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
 	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
 	return strings.ToLower(snake)
-}
-
-func (store *postgresStore) unmarshallRow(row scanable, result interface{}) error {
-	if store.idType == "serial" {
-		return unmarshallRow(row, 0, result)
-	}
-	return unmarshallRow(row, "", result)
 }
 
 func unmarshallRow(row scanable, id interface{}, result interface{}) error {
@@ -88,22 +82,6 @@ type scanable interface {
 	Scan(...interface{}) error
 }
 
-func (store *postgresStore) client() client {
-	if store.tx != nil {
-		return store.tx
-	}
-	return store.pg
-}
-
-var _ client = (*sql.DB)(nil)
-var _ client = (*sql.Tx)(nil)
-
-type client interface {
-	Exec(query string, params ...interface{}) (sql.Result, error)
-	Query(query string, params ...interface{}) (*sql.Rows, error)
-	QueryRow(query string, params ...interface{}) *sql.Row
-}
-
 func getConnectionString(database string) string {
 	pgConf := config.Default().API().DB().Postgres()
 	if database == "" {
@@ -113,4 +91,26 @@ func getConnectionString(database string) string {
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		pgConf.Host(), pgConf.Port(), pgConf.Username(), pgConf.Password(), database,
 	)
+}
+
+func createDatabase() (*sql.DB, error) {
+	dbName := config.Default().API().DB().Postgres().DBName()
+	log.Infof("Creating database %s", dbName)
+
+	tempDB, err := sql.Open("postgres", getConnectionString("postgres"))
+	if err != nil {
+		return nil, err
+	}
+	defer tempDB.Close()
+
+	if _, err = tempDB.Exec(fmt.Sprintf(`CREATE DATABASE "%s"`, dbName)); err != nil {
+		return nil, err
+	}
+
+	pg, err := sql.Open("postgres", getConnectionString(""))
+	if err != nil {
+		return nil, err
+	}
+
+	return pg, pg.Ping()
 }
